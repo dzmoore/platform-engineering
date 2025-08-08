@@ -1,13 +1,22 @@
+build_dir := "build"
+package_dir := build_dir / "package"
+providers_dir := "crossplane/providers"
+timeout := "300s"
+
+default:
+  just --list
+
 start-kind:
   #!/usr/bin/env bash
   set -euo pipefail
   ARCH=$(uname -m)
   OS=$(uname -s)
 
-  if [ "${CODESPACES:-}" = "true" ]; then
-    echo "Running inside a GitHub Codespace; docker daemon should already be available."
-  elif ! docker info >/dev/null 2>&1; then
-    if [[ "$OS" = "Darwin" || "$OS" = "Linux" ]]; then
+  if ! docker info >/dev/null 2>&1; then
+    if [ "${CODESPACES:-}" = "true" ]; then
+      echo "Running inside a GitHub Codespace, but docker daemon not available."
+      exit 1
+    elif [[ "$OS" = "Darwin" || "$OS" = "Linux" ]]; then
       if \
         colima list --profile default --json | 
         yq -e 'select(.status == "Running")' &> /dev/null
@@ -19,7 +28,7 @@ start-kind:
       fi
     else
       echo "Arch: ${ARCH}, OS: ${OS}."
-      echo "❌ Docker daemon is not running or not accessible. Start a docker daemon first."
+      echo "Docker daemon is not running or not accessible. Start a docker daemon first."
       exit 1
     fi
   fi
@@ -53,3 +62,74 @@ stop-kind:
       echo 'Colima "default" profile not running.'
     fi
   fi
+
+install-argocd: start-kind
+  #!/usr/bin/env bash
+  set -euo pipefail
+  if 
+  helm list -A --output json | 
+    yq -e '
+      .[] | 
+      select(.name == "argocd" and .namespace == "argocd")
+    ' &> /dev/null
+  then
+    echo 'ArgoCD release already exists'
+  else
+    helm repo add argo https://argoproj.github.io/argo-helm
+    helm upgrade \
+      -n argocd \
+      --create-namespace \
+      --install \
+      argocd \
+      argo/argo-cd
+  fi
+
+install-crossplane: start-kind
+  #!/usr/bin/env bash
+  set -euo pipefail
+  if 
+  helm list -A --output json | 
+    yq -e '
+      .[] | 
+      select(.name == "crossplane" and .namespace == "crossplane-system")
+    ' &> /dev/null
+  then
+    echo 'Crossplane release already exists'
+  else
+    helm repo add crossplane-stable https://charts.crossplane.io/stable
+
+    helm upgrade crossplane \
+      --install \
+      --namespace crossplane-system \
+      --create-namespace \
+      crossplane-stable/crossplane \
+      --set args='{"--enable-composition-functions","--enable-composition-webhook-schema-validation"}' \
+      --wait
+  fi
+
+apply-providers: install-crossplane
+  #!/usr/bin/env bash
+  for provider in `ls -1 {{providers_dir}} | grep -v config`; do 
+    kubectl apply --filename {{providers_dir}}/$provider;
+  done
+  kubectl wait --for=condition=healthy provider.pkg.crossplane.io --all --timeout={{timeout}}
+  kubectl wait --for=condition=healthy function.pkg.crossplane.io --all --timeout={{timeout}}
+
+apply-package: install-crossplane generate-package
+  kubectl apply -f {{package_dir}}/definition.yaml && sleep 1
+  kubectl apply -f {{package_dir}}/compositions.yaml
+
+start-control-plane: apply-providers apply-package
+
+make-build-dir:
+  mkdir -p {{package_dir}}
+
+clean: stop-kind
+  rm -rf {{build_dir}}
+
+generate-package: make-build-dir
+  kcl run kcl/definition.k > {{package_dir}}/definition.yaml
+  kcl run kcl/compositions.k > {{package_dir}}/compositions.yaml
+
+test: start-control-plane
+  chainsaw test

@@ -1,0 +1,57 @@
+apiVersion = "apiextensions.crossplane.io/v1"
+kind = "CompositeResourceDefinition"
+metadata = {
+    name = "xclusters.platform-engineering.dylanmoore.dev"
+}
+spec = {
+    claimNames = {
+        kind = "Cluster"
+        plural = "clusters"
+    }
+    group = "platform-engineering.dylanmoore.dev"
+    names = {
+        kind = "XCluster"
+        plural = "xclusters"
+    }
+    versions = [
+        {
+            name = "v1alpha1"
+            served = True
+            referenceable = True
+            schema = {
+                openAPIV3Schema = {
+                    type = "object"
+                    properties = {
+                        spec = {
+                            type = "object"
+                            required = ["name"]
+                            properties = {
+                                name.type = "string"
+                                location = {
+                                    type = "string"
+                                    default = "us-west1"
+                                }
+                                clusterDeletionProtection = {
+                                    type = "boolean"
+                                    default = True
+                                }
+                                providerConfigName = {
+                                    type = "string"
+                                    default = "default"
+                                }
+                                deletionPolicy = {
+                                    type = "string"
+                                    enum = [
+                                        "Delete"
+                                        "Orphan"
+                                    ]
+                                    default = "Delete"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}
