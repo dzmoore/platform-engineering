@@ -3,6 +3,58 @@ kind: XCluster
 metadata:
   name: test-cluster-composite
 spec:
-  name: test-cluster
-  location: us-west1
   clusterDeletionProtection: false
+  compositionRef:
+    name: gke-autopilot.google.platform-engineering.dylanmoore.dev
+  deletionPolicy: Delete
+  location: us-west1
+  name: test-cluster
+  providerConfigName: default
+  resourceRefs:
+    - apiVersion: compute.gcp.upbound.io/v1beta1
+      kind: Network
+      name: gke-ap-network-test-cluster-5f212f2280f63700b
+status:
+  (conditions[?type == 'Ready']):
+    - reason: Available
+      status: "True"
+  (conditions[?type == 'Synced']):
+    - reason: ReconcileSuccess
+      status: "True"
+---
+apiVersion: compute.gcp.upbound.io/v1beta1
+kind: Network
+metadata:
+  annotations:
+    crossplane.io/external-name: gke-ap-network-test-cluster-5f212f2280f63700b
+  labels:
+    crossplane.io/claim-name: ""
+    crossplane.io/claim-namespace: ""
+    crossplane.io/composite: test-cluster-composite
+    network.platform-engineering.dylanmoore.dev/network-id: gke-ap-network-test-cluster-5f212f2280f63700b
+  name: gke-ap-network-test-cluster-5f212f2280f63700b
+  ownerReferences:
+    - apiVersion: platform-engineering.dylanmoore.dev/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: XCluster
+      name: test-cluster-composite
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    autoCreateSubnetworks: false
+    bgpBestPathSelectionMode: LEGACY
+    networkFirewallPolicyEnforcementOrder: AFTER_CLASSIC_FIREWALL
+    project: plat-eng-20250815044903
+    routingMode: REGIONAL
+  providerConfigRef:
+    name: default
+status:
+  atProvider:
+    id: projects/plat-eng-20250815044903/global/networks/gke-ap-network-test-cluster-5f212f2280f63700b
+  (conditions[?type == 'Ready']):
+    - reason: Available
+      status: "True"
+  (conditions[?type == 'Synced']):
+    - reason: ReconcileSuccess
+      status: "True"

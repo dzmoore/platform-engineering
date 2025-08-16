@@ -3,6 +3,10 @@ package_dir := build_dir / "package"
 providers_dir := "crossplane/providers"
 timeout := "300s"
 
+GCP_CREDS_SECRET_NAME := "gcp-creds"
+GCP_CREDS_SECRET_KEY := "creds"
+GCP_CREDS_SECRET_NAMESPACE := "crossplane-system"
+
 default:
   just --list
 
@@ -123,6 +127,7 @@ start-control-plane: apply-providers apply-package
 
 make-build-dir:
   mkdir -p {{package_dir}}
+  mkdir -p {{package_dir}}/providers
 
 clean: stop-kind
   rm -rf {{build_dir}}
@@ -130,6 +135,30 @@ clean: stop-kind
 generate-package: make-build-dir
   kcl run kcl/definition.k > {{package_dir}}/definition.yaml
   kcl run kcl/compositions.k > {{package_dir}}/compositions.yaml
+  cp -rv crossplane/providers/* {{package_dir}}/providers/
 
 test: start-control-plane
+  #!/usr/bin/env bash
+  set -euo pipefail
+  if [[ -z "${GCP_CREDS:-}" ]]; then
+    echo "GCP_CREDS environment variable not set"
+    exit 1
+  fi
+  
+  if [[ -z "${GCP_PROJECT_ID:-}" ]]; then
+    echo "GCP_PROJECT_ID environment variable not set"
+    exit 1
+  fi
+
+  kubectl --namespace {{GCP_CREDS_SECRET_NAMESPACE}} \
+    create secret generic {{GCP_CREDS_SECRET_NAME}} \
+    --from-literal {{GCP_CREDS_SECRET_KEY}}="$GCP_CREDS" \
+    --dry-run=client -oyaml | kubectl apply -f -
+
+  GCP_PROJECT_ID=$GCP_PROJECT_ID \
+    GCP_CREDS_SECRET_NAME={{GCP_CREDS_SECRET_NAME}} \
+    GCP_CREDS_SECRET_NAMESPACE={{GCP_CREDS_SECRET_NAMESPACE}} \
+    GCP_CREDS_SECRET_KEY={{GCP_CREDS_SECRET_KEY}} \
+    bash tests/test-provider-configs.sh
+
   chainsaw test

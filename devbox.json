@@ -10,7 +10,8 @@
     "kcl@latest",
     "kyverno-chainsaw@latest",
     "crossplane-cli@latest",
-    "yq-go@latest"
+    "yq-go@latest",
+    "google-cloud-sdk@latest"
   ],
   "shell": {
     "init_hook": [

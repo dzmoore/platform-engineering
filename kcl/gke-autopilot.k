@@ -14,6 +14,14 @@ managedResourceName = lambda baseName: str -> str {
     "gke-ap-{}-{}".format(baseName, nameAndHash)[0:45:].rstrip("-")
 }
 
+annotations = lambda resourceName: str, additionalAnnotations: any = {} -> any {
+    _annotations = {key = value for key, value in additionalAnnotations}
+
+    _annotations["krm.kcl.dev/composition-resource-name"] = resourceName
+
+    _annotations
+}
+
 clusterName: str = specObj.name
 clusterLocation: str = specObj.location or "us-west1"
 providerName: str = specObj.providerConfigName or "default"
@@ -23,6 +31,7 @@ deletionPolicy: str = specObj.deletionPolicy or "Delete"
 clusterObjName = managedResourceName("cluster")
 serviceAccountObjName = managedResourceName("svc-acct")
 serviceAccountKeyObjName = managedResourceName("svc-acct-key")
+networkObjName = managedResourceName("network")
 
 serviceAccountName = nameAndHash[0:30:].rstrip("-")
 
@@ -43,6 +52,25 @@ connectionDetails = {
 
 _resources = [
     connectionDetails
+    {
+        apiVersion = "compute.gcp.upbound.io/v1beta1"
+        kind = "Network"
+        metadata = {
+            name = networkObjName
+            annotations = annotations(networkObjName)
+            labels = {
+                "network.platform-engineering.dylanmoore.dev/network-id" = networkObjName
+            }
+        }
+        spec = {
+          forProvider = {
+            autoCreateSubnetworks = False
+            routingMode = "REGIONAL"
+          }
+          providerConfigRef.name = providerName
+          deletionPolicy = deletionPolicy
+        }
+    }
 ]
 
 items = _resources
