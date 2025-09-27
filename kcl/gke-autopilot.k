@@ -32,6 +32,7 @@ clusterObjName = managedResourceName("cluster")
 serviceAccountObjName = managedResourceName("svc-acct")
 serviceAccountKeyObjName = managedResourceName("svc-acct-key")
 networkObjName = managedResourceName("network")
+subnetworkObjName = managedResourceName("subnetwork")
 
 serviceAccountName = nameAndHash[0:30:].rstrip("-")
 
@@ -63,12 +64,40 @@ _resources = [
             }
         }
         spec = {
-          forProvider = {
-            autoCreateSubnetworks = False
-            routingMode = "REGIONAL"
-          }
-          providerConfigRef.name = providerName
-          deletionPolicy = deletionPolicy
+            forProvider = {
+                autoCreateSubnetworks = False
+                routingMode = "REGIONAL"
+            }
+            providerConfigRef.name = providerName
+            deletionPolicy = deletionPolicy
+        }
+    }
+    {
+        apiVersion = "compute.gcp.upbound.io/v1beta2"
+        kind = "Subnetwork"
+        metadata = {
+            name = subnetworkObjName
+            annotations = annotations(subnetworkObjName)
+        }
+        spec = {
+            forProvider = {
+                region = clusterLocation
+                networkSelector.matchControllerRef = True
+                privateIpGoogleAccess = True
+                ipCidrRange = "172.16.0.0/16"
+                secondaryIpRange = [
+                    {
+                        rangeName = "pods"
+                        ipCidrRange = "10.200.0.0/14"
+                    }
+                    {
+                        rangeName = "services"
+                        ipCidrRange = "10.204.0.0/16"
+                    }
+                ]
+            }
+            providerConfigRef.name = providerName
+            deletionPolicy = deletionPolicy
         }
     }
 ]

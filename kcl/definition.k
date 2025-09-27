@@ -1,18 +1,15 @@
-apiVersion = "apiextensions.crossplane.io/v1"
+apiVersion = "apiextensions.crossplane.io/v2"
 kind = "CompositeResourceDefinition"
 metadata = {
-    name = "xclusters.platform-engineering.dylanmoore.dev"
+    name = "clusters.platform-engineering.dylanmoore.dev"
 }
 spec = {
-    claimNames = {
+    group = "platform-engineering.dylanmoore.dev"
+    names = {
         kind = "Cluster"
         plural = "clusters"
     }
-    group = "platform-engineering.dylanmoore.dev"
-    names = {
-        kind = "XCluster"
-        plural = "xclusters"
-    }
+    scope = "Namespaced"
     versions = [
         {
             name = "v1alpha1"

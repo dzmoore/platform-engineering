@@ -99,6 +99,7 @@ install-crossplane: start-kind
     ' &> /dev/null
   then
     echo 'Crossplane release already exists'
+    helm repo update
   else
     helm repo add crossplane-stable https://charts.crossplane.io/stable
 
@@ -107,7 +108,6 @@ install-crossplane: start-kind
       --namespace crossplane-system \
       --create-namespace \
       crossplane-stable/crossplane \
-      --set args='{"--enable-composition-functions","--enable-composition-webhook-schema-validation"}' \
       --wait
   fi
 
@@ -161,4 +161,4 @@ test: start-control-plane
     GCP_CREDS_SECRET_KEY={{GCP_CREDS_SECRET_KEY}} \
     bash tests/test-provider-configs.sh
 
-  chainsaw test
+  chainsaw test --pause-on-failure

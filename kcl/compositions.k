@@ -44,7 +44,7 @@ schema composition:
     composition {
         _group = "platform-engineering.dylanmoore.dev"
         _version = "v1alpha1"
-        _kind = "XCluster"
+        _kind = "Cluster"
         _clusterName = "gke-autopilot"
         _clusterProvider = "google"
         _source = file.read("kcl/gke-autopilot.k")
